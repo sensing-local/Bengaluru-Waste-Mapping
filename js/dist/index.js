@@ -14,6 +14,7 @@ function addMapLayers(map) {
 
     map.addSource('bbmp-block', mapLayers['bbmp-block'].source)
     map.addLayer(mapLayers['bbmp-block']['bbmp-block line']);
+    map.addLayer(mapLayers['bbmp-block']['bbmp-block fill']);
 
     map.setPaintProperty('pc line border-highlight', 'line-color', [
         "match", ["feature-state", "state"], 'active',
@@ -157,8 +158,8 @@ const _app = {
     init: {
       container: 'map',
       style: 'mapbox://styles/planemad/cjoescdh20cl62spey0zj3v19',
-      bounds: [66, 7, 99, 37],
-      maxBounds: [50, 5, 114, 40],
+      bounds: [77.42,12.86,77.78,13.10],
+      maxBounds: [77.325897,12.756892,77.882080,13.147690],
       pitchWithRotate: false,
       hash: true
     }
@@ -190,14 +191,7 @@ map.on('load', () => {
 
   //Define map interactivity
 
-  map.on('click', mapLayers["click-layer-id"], (e) => {
-
-    // Package the features at clicked location to resemble a tilequery result
-    e.tileFeatures = {
-      'ac': {},
-      'pc': e.features[0],
-      'schedule': {}
-    }
+  map.on('click', mapLayers["click-layer-ids"][0], (e) => {
 
     // Show constituency details at location
     showDataAtPoint(map, e)
@@ -323,7 +317,7 @@ function locateUser(map) {
 }
 },{"./add-marker":3,"./show-data-at-point":11}],9:[function(require,module,exports){
 module.exports = {
-    'click-layer-id': 'pc fill mask',
+    'click-layer-ids': ['pc fill mask','bbmp-block fill'],
     'bbmp-block': {
         'tileset-id': 'sensinglocal.cjvc9gje019mc2xlmcok08drz-39ig2',
         source: {
@@ -342,6 +336,16 @@ module.exports = {
             "paint": {
                 "line-color": "#ff69b4",
                 "line-width": 1
+            }
+        },
+        'bbmp-block fill': {
+            "id": "bbmp-block fill",
+            "type": "fill",
+            "source": 'bbmp-block',
+            "source-layer": "Blocks_with_Data",
+            "paint": {
+                "fill-color": "#000",
+                "fill-opacity": 0
             }
         }
     }
@@ -411,15 +415,19 @@ module.exports = showDataAtPoint
 
 function showDataAtPoint(map, e) {
 
-  // Query rendered features at clicked point
-  var features = map.queryRenderedFeatures(e.point, {
-    layers: [mapLayers["click-layer-id"]]
+  var featuresAtPoint = {lngLat:e.lngLat};
+
+  // Query rendered features at clicked point and store results into an object
+  map.queryRenderedFeatures(e.point, {
+    layers: mapLayers["click-layer-ids"]
+  }).forEach(feature => {
+    featuresAtPoint[feature.sourceLayer] = feature;
   })
+
+  console.log(featuresAtPoint);
 
   // Add marker at clicked location
   Markers.addMarker(map, e);
-
-  const tilequeryURL = getTilequeryURL(e.lngLat)
 
   map.flyTo({
     center: [e.lngLat.lng, e.lngLat.lat]
@@ -427,12 +435,13 @@ function showDataAtPoint(map, e) {
 
   // If event object has tile features from clicked event, use it to update the info panel
   // Else fetch the features at that point using the tilequery API
-  if (e.tileFeatures != undefined) {
-    updateInfoPanel(map, e.tileFeatures);
+  if (Object.keys(featuresAtPoint>1)) {
+    updateInfoPanel(map, featuresAtPoint);
   } else {
     // use fetch to fetch data - this maintains consistency with using fetch elsewhere
     // if we have browser considerations where `fetch` does not work,
     // we can replace this with $.getJSON or so
+    const tilequeryURL = getTilequeryURL(e.lngLat)
     fetch(tilequeryURL)
       .then(response => response.json())
       .then(data => {
@@ -440,12 +449,12 @@ function showDataAtPoint(map, e) {
         // merge the damn properies
         // var holder = Object.assign({}, data.features[0].properties, data.features[1].properties);
 
-        var tileFeatures = {}
+        var featuresAtPoint = {}
         data.features.forEach(feature => {
-          tileFeatures[feature.properties.tilequery.layer] = feature;
+          featuresAtPoint[feature.properties.tilequery.layer] = feature;
         });
 
-        updateInfoPanel(map, tileFeatures);
+        updateInfoPanel(map, featuresAtPoint);
 
       })
       .catch(err => {
@@ -457,26 +466,44 @@ function showDataAtPoint(map, e) {
 
 var activeFeatureId = null;
 
-function updateInfoPanel(map, tileFeatures) {
+function updateInfoPanel(map, featuresAtPoint) {
 
-  console.log('Constituency details API:', tileFeatures);
+  console.log('Features at Point:', featuresAtPoint);
 
   // Add a loading spinner to the infoPanel while we fetch data
   document.getElementById('infoPanel').innerHTML = '';
   document.getElementById('infoPanel').classList.add('loading', 'loading--s');
 
-  var ECI_code = ECILookup[String(tileFeatures.pc.properties.st_code)]['ECI_code'];
+  var ECI_code = ECILookup[String(featuresAtPoint.pc.properties.st_code)]['ECI_code'];
 
   // Composing link to Official ECI candidates affidavits page: https://affidavit.eci.gov.in/showaffidavit/1/S13/34/PC
-  var ECIAffidavit_URL = `https://affidavit.eci.gov.in/showaffidavit/1/${ECI_code}/${String(tileFeatures.pc.properties.pc_no)}/PC`;
+  var ECIAffidavit_URL = `https://affidavit.eci.gov.in/showaffidavit/1/${ECI_code}/${String(featuresAtPoint.pc.properties.pc_no)}/PC`;
 
   // Composing info
-  var info = `<span class='txt-light'>2019 Lok Sabha Elections</span><br>
-    <span class='txt-light'>Your Constituency: </span><b>${tileFeatures.pc.properties.pc_name}</b> (${tileFeatures.pc.properties.pc_no})<br>
-    <span class='txt-light'>Voting is on: </span><b>${tileFeatures.pc.properties['2019_election_date'].split('T')[0]}</b> (Phase ${tileFeatures.pc.properties['2019_election_phase']})<br>
-    <a href="${ECIAffidavit_URL}" target="_blank" class="link">Click here to see the Candidates</a> <br>
-    State: ${tileFeatures.pc.properties.st_name} (${ECI_code})<br>
-    `;
+  // var info = `<span class='txt-light'>2019 Lok Sabha Elections</span><br>
+  //   <span class='txt-light'>Your Constituency: </span><b>${featuresAtPoint.pc.properties.pc_name}</b> (${featuresAtPoint.pc.properties.pc_no})<br>
+  //   <span class='txt-light'>Voting is on: </span><b>${featuresAtPoint.pc.properties['2019_election_date'].split('T')[0]}</b> (Phase ${featuresAtPoint.pc.properties['2019_election_phase']})<br>
+  //   <a href="${ECIAffidavit_URL}" target="_blank" class="link">Click here to see the Candidates</a> <br>
+  //   State: ${featuresAtPoint.pc.properties.st_name} (${ECI_code})<br>
+  //   `;
+
+   var infoPanel =  {
+      'HI No': 'txt-light',
+'Supervisor': 'txt-light',
+'HI Name': 'txt-light',
+'AT_No': 'txt-light',
+'Sup_ No': 'txt-light',
+'AT Driver': 'txt-light',
+'Vehicle No': 'txt-light',
+'Driver No': 'txt-light',
+'Block Name': 'txt-light',
+'Block Nos': 'txt-light'
+    }
+    var info='';
+Object.keys(infoPanel).forEach(key=>{
+  info+=`<span class='${infoPanel[key]}'>${key}</span> <b>${featuresAtPoint['Blocks_with_Data'].properties[key]}</b><br>`
+})
+
   document.getElementById('infoPanel').classList.remove('loading');
   document.getElementById('infoPanel').innerHTML = info;
 
@@ -488,7 +515,7 @@ function updateInfoPanel(map, tileFeatures) {
   map.setFeatureState({
     source: 'mapbox://planemad.3picr4b8',
     sourceLayer: 'pc',
-    id: tileFeatures.pc.id
+    id: featuresAtPoint.pc.id
   }, {
     state: 'active'
   });
