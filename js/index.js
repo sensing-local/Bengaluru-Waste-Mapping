@@ -8,24 +8,10 @@ var addMapLayers = require('./add-map-layers')
 var addSpreadsheetData = require('./add-spreadsheet-data')
 
 // Enable Mapbox services
-mapboxgl.accessToken = 'pk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiY2p1M3JuNnRjMGZ2NzN6bGVqN3Z4bmVtOSJ9.Fx0kmfg-7ll2Oi-7ZVJrfQ';
-
-// App configuration
-const _app = {
-  map: {
-    init: {
-      container: 'map',
-      style: 'mapbox://styles/planemad/cjoescdh20cl62spey0zj3v19',
-      bounds: [77.42,12.86,77.78,13.10],
-      maxBounds: [77.325897,12.756892,77.882080,13.147690],
-      pitchWithRotate: false,
-      hash: true
-    }
-  }
-}
+mapboxgl.accessToken = mapLayers['access-token'];
 
 // Initialize GL map
-var map = new mapboxgl.Map(_app.map.init);
+var map = new mapboxgl.Map(mapLayers.map);
 
 map.on('load', () => {
 
@@ -34,9 +20,6 @@ map.on('load', () => {
 
   // Load additional attributes from spreadsheet
   addSpreadsheetData();
-
-  // Find user location
-  locateUser(map);
 
   // Add map UI controls
   addMapControls(map, mapboxgl.accessToken, {
@@ -47,12 +30,18 @@ map.on('load', () => {
   });
   map.touchZoomRotate.disableRotation();
 
-  //Define map interactivity
+  // Find user location
+  locateUser(map, showDataAtPoint);
 
+
+  //Define map interactivity
   map.on('click', mapLayers["click-layer-ids"][0], (e) => {
 
     // Show constituency details at location
     showDataAtPoint(map, e)
+    // if(map.getZoom()<mapLayers.map.zoom){
+    //   map.setZoom(mapLayers.map.zoom)
+    // }
 
   })
 

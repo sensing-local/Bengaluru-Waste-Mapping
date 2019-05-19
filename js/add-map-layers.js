@@ -9,6 +9,9 @@ module.exports = addMapLayers
 
 function addMapLayers(map) {
 
+    map.addSource('electoral', mapLayers['electoral'].source)
+    map.addLayer(mapLayers['electoral']['ac fill']);
+
     map.addSource('bbmp-block', mapLayers['bbmp-block'].source)
     map.addLayer(mapLayers['bbmp-block']['bbmp-block line']);
     map.addLayer(mapLayers['bbmp-block']['bbmp-block fill']);

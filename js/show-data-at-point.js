@@ -17,8 +17,6 @@ function showDataAtPoint(map, e) {
     featuresAtPoint[feature.sourceLayer] = feature;
   })
 
-  console.log(featuresAtPoint);
-
   // Add marker at clicked location
   Markers.addMarker(map, e);
 
@@ -35,7 +33,15 @@ function showDataAtPoint(map, e) {
     // if we have browser considerations where `fetch` does not work,
     // we can replace this with $.getJSON or so
     const tilequeryURL = getTilequeryURL(e.lngLat)
-    fetch(tilequeryURL)
+    function fetchFeaturesAtPoint(lngLat){
+      var fetchCalls = []
+      mapLayers['click-layer-tileset-ids'].forEach(layer=>{
+        fetchCalls.push(fetch(`https://api.mapbox.com/v4/${mapLayers['bbmp-block']["tileset-id"]}/tilequery/${lngLat.lng},${lngLat.lat}.json?limit=5&radius=0&dedupe=true&access_token=${mapboxgl.accessToken}`))
+      })
+      return fetchCalls
+
+    }
+    fetchFeaturesAtPoint(e.lngLat)
       .then(response => response.json())
       .then(data => {
 
@@ -46,6 +52,8 @@ function showDataAtPoint(map, e) {
         data.features.forEach(feature => {
           featuresAtPoint[feature.properties.tilequery.layer] = feature;
         });
+
+        console.log('from API:',featuresAtPoint)
 
         updateInfoPanel(map, featuresAtPoint);
 
@@ -66,11 +74,6 @@ function updateInfoPanel(map, featuresAtPoint) {
   // Add a loading spinner to the infoPanel while we fetch data
   document.getElementById('infoPanel').innerHTML = '';
   document.getElementById('infoPanel').classList.add('loading', 'loading--s');
-
-  var ECI_code = ECILookup[String(featuresAtPoint.pc.properties.st_code)]['ECI_code'];
-
-  // Composing link to Official ECI candidates affidavits page: https://affidavit.eci.gov.in/showaffidavit/1/S13/34/PC
-  var ECIAffidavit_URL = `https://affidavit.eci.gov.in/showaffidavit/1/${ECI_code}/${String(featuresAtPoint.pc.properties.pc_no)}/PC`;
 
   // Composing info
   // var info = `<span class='txt-light'>2019 Lok Sabha Elections</span><br>

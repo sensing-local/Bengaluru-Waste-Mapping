@@ -1,4 +1,3 @@
-var showDataAtPoint = require('./show-data-at-point')
 var Markers = require('./add-marker');
 var browserLocated = false
 
@@ -8,7 +7,7 @@ function errorHandler(err) {
   console.log('error getting user location', err)
 }
 
-function locateUser(map) {
+function locateUser(map, showDataAtPoint) {
 
   function showLocation(position) {
 
@@ -72,7 +71,7 @@ function locateUser(map) {
 
           map.flyTo({
             center: [lngLat.lng, lngLat.lat],
-            zoom: 9
+            zoom: 10
           });
 
         }
